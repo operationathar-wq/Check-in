@@ -31,7 +31,7 @@
     <select id="sales"></select>
 
     <label for="broker">شركة البروكر</label>
-    <select id="broker"></select>
+   <input id="broker" list="brokers" placeholder="اكتبي اسم شركة البروكر"><datalist id="brokers"></datalist>
 
     <label for="note">ملاحظات / عدد الحضور (اختياري)</label>
     <input id="note" placeholder="مثال: 12 بروكر">
@@ -67,7 +67,7 @@ function fill(el, arr) {
   }
 }
 fill($("sales"), SALES);
-fill($("broker"), BROKERS);
+fill($("brokers"), BROKERS);
 
 function show(msg, cls) {
   st.className = cls || "";
