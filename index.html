@@ -66,8 +66,15 @@ function fill(el, arr) {
     el.appendChild(o);
   }
 }
+function loadNames() {
+  fetch(SCRIPT_URL + "?action=names&t=" + Date.now()).then(function (r) { return r.json(); }).then(function (data) {
+    if (data.sales && data.sales.length) { $("sales").innerHTML = ""; fill($("sales"), data.sales); }
+    if (data.brokers && data.brokers.length) { $("brokers").innerHTML = ""; fill($("brokers"), data.brokers); }
+  }).catch(function () {});
+}
 fill($("sales"), SALES);
 fill($("brokers"), BROKERS);
+loadNames();
 
 function show(msg, cls) {
   st.className = cls || "";
