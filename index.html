@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Check-in / Check-out</title>
+<style>
+  :root{--bg:#f4f6f8;--card:#fff;--text:#1b2733;--muted:#6b7a89;--in:#1f9d55;--out:#d64545;--line:#dde3e9}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+  .wrap{max-width:460px;margin:0 auto;padding:16px}
+  h1{font-size:20px;margin:8px 0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+  label{display:block;font-size:14px;color:var(--muted);margin:10px 0 6px}
+  select,input{width:100%;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text)}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  button{border:0;border-radius:12px;padding:18px 8px;font-size:18px;font-weight:700;color:#fff;cursor:pointer}
+  button:disabled{opacity:.5}
+  #in{background:var(--in)} #out{background:var(--out)}
+  #status{font-size:15px;line-height:1.7;white-space:pre-line}
+  .ok{color:var(--in)} .err{color:var(--out)}
+  .small{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>تسجيل حضور أورينتيشن شركات البروكر</h1>
+
+  <div class="card">
+    <label for="sales">اسم السيلز</label>
+    <select id="sales"></select>
+
+    <label for="broker">شركة البروكر</label>
+    <select id="broker"></select>
+
+    <label for="note">ملاحظات / عدد الحضور (اختياري)</label>
+    <input id="note" placeholder="مثال: 12 بروكر">
+
+    <div class="btns">
+      <button id="in">Check-in ✅</button>
+      <button id="out">Check-out 🚪</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div id="status" class="small">اختاري الاسم والشركة ثم اضغطي الزر. لو المتصفح طلب إذن الموقع اضغطي سماح.</div>
+  </div>
+</div>
+
+<script>
+// ===== 1) الصقي هنا لينك Apps Script (اللي بينتهي بـ /exec) بين علامتي التنصيص =====
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmcUCEaYlV-K5DubIjJPK71sZKO0jnsLLjupmUCQ78Ac-yklaBbuNQn3BbtY1QO4AqUw/exec";
+
+// ===== 2) عدّلي القوائم دي =====
+var SALES   = ["سيلز 1", "سيلز 2", "سيلز 3"];
+var BROKERS = ["شركة بروكر 1", "شركة بروكر 2", "شركة بروكر 3"];
+// =================================
+
+function $(id) { return document.getElementById(id); }
+var st = $("status");
+
+function fill(el, arr) {
+  for (var i = 0; i < arr.length; i++) {
+    var o = document.createElement("option");
+    o.textContent = arr[i];
+    el.appendChild(o);
+  }
+}
+fill($("sales"), SALES);
+fill($("broker"), BROKERS);
+
+function show(msg, cls) {
+  st.className = cls || "";
+  st.textContent = msg;
+}
+
+function setBusy(b) {
+  $("in").disabled = b;
+  $("out").disabled = b;
+}
+
+function send(rec, done, fail) {
+  fetch(SCRIPT_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(rec)
+  }).then(done).catch(fail);
+}
+
+function record(type) {
+  setBusy(true);
+
+  if (SCRIPT_URL.indexOf("PASTE_") === 0) {
+    show("⚠️ لسه ما حطيتيش لينك Apps Script في الملف.", "err");
+    setBusy(false);
+    return;
+  }
+  if (!navigator.geolocation) {
+    show("❌ المتصفح لا يدعم تحديد الموقع", "err");
+    setBusy(false);
+    return;
+  }
+
+  show("⏳ جاري تحديد الموقع...");
+
+  navigator.geolocation.getCurrentPosition(
+    function (p) {
+      var lat = p.coords.latitude;
+      var lng = p.coords.longitude;
+      var acc = Math.round(p.coords.accuracy);
+      var rec = {
+        sales: $("sales").value,
+        broker: $("broker").value,
+        type: type,
+        lat: lat,
+        lng: lng,
+        acc: acc,
+        map: "https://www.google.com/maps?q=" + lat + "," + lng,
+        note: $("note").value
+      };
+      var label = (type === "IN") ? "Check-in" : "Check-out";
+      show("⏳ جاري الحفظ في الشيت...");
+
+      send(
+        rec,
+        function () {
+          show("✅ تم تسجيل " + label + "\n" + rec.broker + "\nدقة الموقع: ±" + acc + " متر\n" + rec.map, "ok");
+          setBusy(false);
+        },
+        function () {
+          show("❌ الموقع اتحدد بس الحفظ فشل. اتأكدي من النت وجرّبي تاني.\n" + rec.map, "err");
+          setBusy(false);
+        }
+      );
+    },
+    function (err) {
+      var m;
+      if (err && err.code === 1) {
+        m = "الإذن مرفوض. فعّلي الموقع للمتصفح من إعدادات الموبايل وجرّبي تاني.";
+      } else if (err && err.code === 3) {
+        m = "اتأخر تحديد الموقع. اطلعي مكان مفتوح أو شغّلي GPS وجرّبي تاني.";
+      } else {
+        m = (err && err.message) || "حصلت مشكلة في تحديد الموقع";
+      }
+      show("❌ " + m, "err");
+      setBusy(false);
+    },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+  );
+}
+
+$("in").onclick = function () { record("IN"); };
+$("out").onclick = function () { record("OUT"); };
+</script>
+</body>
+</html>
